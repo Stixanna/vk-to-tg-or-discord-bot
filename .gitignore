@@ -1,0 +1,14 @@
+__pycache__/
+
+logs/
+*.log*
+
+temp/
+
+.env
+venv/
+ENV/
+
+.mypy_cache/
+
+.vscode/*
