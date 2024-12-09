@@ -1,5 +1,6 @@
 from typing import Union
 
+import discord
 from aiogram import Bot, Dispatcher
 from aiogram.utils import executor
 from loguru import logger
@@ -11,6 +12,8 @@ from parse_posts import parse_post
 from send_posts import send_post
 from tools import blacklist_check, prepare_temp_folder, whitelist_check
 
+# Асинхронный клиент для Discord
+discord_client = discord.Client(intents=discord.Intents.default())
 
 def start_script():
     bot = Bot(token=config.TG_BOT_TOKEN)
@@ -70,6 +73,7 @@ def start_script():
                 logger.info(f"Starting parsing of the {item_part}")
                 parsed_post = parse_post(item_parts[item_part], repost_exists, item_part, group_name)
                 logger.info(f"Starting sending of the {item_part}")
+                
                 executor.start(
                     dp,
                     send_post(
@@ -78,6 +82,9 @@ def start_script():
                         parsed_post["text"],
                         parsed_post["photos"],
                         parsed_post["docs"],
+                        parsed_post["tags"],
+                        discord_client,
+                        config.DISCORDBOT_TOKEN,
                     ),
                 )
 

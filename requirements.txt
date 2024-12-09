@@ -2,3 +2,5 @@ aiogram<=2.25.2
 requests
 loguru
 python-dotenv
+discord.py
+

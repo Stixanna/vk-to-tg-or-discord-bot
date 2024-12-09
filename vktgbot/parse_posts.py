@@ -20,13 +20,15 @@ def parse_post(item: dict, repost_exists: bool, item_type: str, group_name: str)
     videos: list = []
     photos: list = []
     docs: list = []
+    tags: list = []
 
+    tags = get_tags(text)
     if "attachments" in item:
         parse_attachments(item["attachments"], text, urls, videos, photos, docs)
 
     text = add_urls_to_text(text, urls, videos)
     logger.info(f"{item_type.capitalize()} parsing is complete.")
-    return {"text": text, "photos": photos, "docs": docs}
+    return {"text": text, "photos": photos, "docs": docs, "tags": tags}
 
 
 def parse_attachments(attachments, text, urls, videos, photos, docs):
@@ -101,3 +103,8 @@ def get_doc(doc: dict) -> Union[dict, None]:
             file.write(response.content)
 
     return {"title": doc["title"], "url": doc["url"]}
+
+
+def get_tags(text: str) -> list[str]:
+    tags = re.findall(r"#\w+", text)
+    return tags
