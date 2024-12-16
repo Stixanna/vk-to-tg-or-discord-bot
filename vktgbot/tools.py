@@ -91,3 +91,9 @@ def reformat_vk_links(text: str) -> str:
         match = re.search("\[([\w.]+?)\|(.+?)\]", text)
 
     return text
+
+def fix_filename(originalFilename: str) -> str:
+    filename = originalFilename.split('?')[0]
+    # logger.info(filename)
+    """Исправляет расширение файла, если оно некорректное."""
+    return filename
