@@ -17,14 +17,14 @@ async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: li
         logger.error("Post was not sent to Telegram. Too many tries.")
         return
     try:
-        if len(photos) == 0:
+        if len(photos) == 0 and not docs:
             await send_text_post(bot, tg_channel, text)
         elif len(photos) == 1:
             await send_photo_post(bot, tg_channel, text, photos)
         elif len(photos) >= 2:
             await send_photos_post(bot, tg_channel, text, photos)
-        if docs:
-            await send_docs_post(bot, tg_channel, docs)
+        elif docs:
+            await send_docs_post(bot, tg_channel, text, docs)
         # Discord отправка (пример — отправляем текст и прикрепления)
         await send_to_discord(discord_token, text, photos, docs, tags)
 
@@ -86,12 +86,18 @@ async def send_photos_post(bot: Bot, tg_channel: str, text: str, photos: list) -
     logger.info("Text post with photos sent to Telegram.")
 
 
-async def send_docs_post(bot: Bot, tg_channel: str, docs: list) -> None:
-    media = types.MediaGroup()
+async def send_docs_post(bot: Bot, tg_channel: str, text: str, docs: list) -> None:
     for doc in docs:
-        media.attach_document(types.InputMediaDocument(open(f"./temp/{doc['title']}", "rb")))
-    await bot.send_media_group(tg_channel, media)
-    logger.info("Documents sent to Telegram.")
+        try:
+            # Открываем файл из временной директории
+            with open(f"./temp/{doc['title']}", "rb") as file:
+                # Отправляем файл с текстом
+                await bot.send_document(chat_id=tg_channel, document=file, caption=text)
+                logger.info(f"Документ {doc['title']} отправлен в Telegram.")
+        except Exception as e:
+            logger.error(f"Ошибка при отправке документа {doc['title']}: {e}")
+
+
 
 async def send_to_discord(
     discord_token: str,
