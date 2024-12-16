@@ -1,5 +1,6 @@
 import asyncio
 import discord
+from discord.ext import commands
 
 from aiogram import Bot, types
 from aiogram.utils import exceptions
@@ -8,7 +9,7 @@ from loguru import logger
 from tools import split_text
 
 
-async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: list, tags: list, discord_client: discord.Client, discord_token: str, num_tries: int = 0) -> None:
+async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: list, tags: list, discord_token: str, num_tries: int = 0) -> None:
     num_tries += 1
     if num_tries > 3:
         logger.error("Post was not sent to Telegram. Too many tries.")
@@ -23,7 +24,7 @@ async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: li
         if docs:
             await send_docs_post(bot, tg_channel, docs)
         # Discord отправка (пример — отправляем текст и прикрепления)
-        # asyncio.run(send_to_discord(discord_client, discord_token, text, photos, docs, tags))
+        await send_to_discord(discord_token, text, photos, docs, tags)
 
     except exceptions.RetryAfter as ex:
         logger.warning(f"Flood limit is exceeded. Sleep {ex.timeout} seconds. Try: {num_tries}")
@@ -91,37 +92,53 @@ async def send_docs_post(bot: Bot, tg_channel: str, docs: list) -> None:
     logger.info("Documents sent to Telegram.")
 
 async def send_to_discord(
-    discord_client: discord.Client,
     discord_token: str,
     text: str,
     photos: list,
     docs: list,
     tags: list,
 ) -> None:
-    discord_client.run(discord_token)
-    for tag in tags:
-        match tag:
-            case '#dota':
-                channel_id = '277493272346230785'  # Замените ID канала
-            case _:
-                channel_id = '1315308603527397476'  # Замените ID канала
-        async with discord_client:  # Используем контекстный менеджер для автоматического управления клиентом
-            # await discord_client.login(discord_token)
-            channel = discord_client.get_channel(channel_id)
-            if channel:
-                await channel.send(text)
-                logger.info(f"Сообщение отправлено в канал {channel.name}")
-            else:
-                logger.error(f"Канал с ID {channel_id} не найден.")
+    intents = discord.Intents.default()
+    discord_bot = commands.Bot(command_prefix="!", intents=intents)
+    @discord_bot.event
+    async def on_ready():
+        try:
+            # logger.info("Бот подключён!")
+            # for guild in bot.guilds:
+            #     logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
+            #     for channel in guild.channels:
+            #         logger.info(f"Канал: {channel.name} (ID: {channel.id})")
 
-            # Отправляем текст с тегами
-            # message_text = f"{text}\n\n{' '.join(tags)}"
-            # await channel.send(text)
+            for tag in tags:
+                match tag:
+                    case '#dota':
+                        channel_id = 277493272346230785  # Замените ID канала
+                    case _:
+                        continue    # Если такого тега нет, то пропускаем пост, не отправляем (надо дописать - если никаких тегов нет то отправить хоть кудато)
+                        # channel_id = 1315308603527397476  # Замените ID канала
+                channel = discord_bot.get_channel(channel_id)
+                if channel:
+                    await channel.send(text)
+                    logger.info(f"Сообщение отправлено в канал {channel.name}")
+                else:
+                    logger.error(f"Канал с ID {channel_id} не найден.")
 
-            # Отправляем фото (если есть)
-            for photo in photos:
-                await channel.send(file=discord.File(photo))
+                files = []  # Список файлов для прикрепления
 
-            # Отправляем документы (если есть)
-            for doc in docs:
-                await channel.send(file=discord.File(doc))
+                # Добавляем изображения
+                for photo in photos:
+                    try:
+                        files.append(discord.File(photo))
+                    except Exception as e:
+                        logger.error(f"Ошибка при добавлении фото {photo}: {e}")
+
+                # Добавляем документы
+                for doc in docs:
+                    try:
+                        files.append(discord.File(doc))
+                    except Exception as e:
+                        logger.error(f"Ошибка при добавлении документа {doc}: {e}")
+        finally:
+            await discord_bot.close()
+
+    await discord_bot.start(discord_token)
