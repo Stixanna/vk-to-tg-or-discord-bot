@@ -12,7 +12,7 @@ from loguru import logger
 from tools import split_text, fix_filename
 
 
-async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: list, tags: list, discord_token: str, num_tries: int = 0) -> None:
+async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: list, tags: list, discord_token: str, discord_server_id: int, num_tries: int = 0) -> None:
     num_tries += 1
     if num_tries > 3:
         logger.error("Post was not sent to Telegram. Too many tries.")
@@ -27,7 +27,7 @@ async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: li
         elif docs:
             await send_docs_post(bot, tg_channel, text, docs)
         # Discord отправка (пример — отправляем текст и прикрепления)
-        await send_to_discord(discord_token, text, photos, docs, tags)
+        await send_to_discord(discord_token, discord_server_id, text, photos, docs, tags)
 
     except exceptions.RetryAfter as ex:
         logger.warning(f"Flood limit is exceeded. Sleep {ex.timeout} seconds. Try: {num_tries}")
@@ -102,31 +102,25 @@ async def send_docs_post(bot: Bot, tg_channel: str, text: str, docs: list) -> No
 
 async def send_to_discord(
     discord_token: str,
+    discord_server_id : int,
     text: str,
     photos: list,
     docs: list,
     tags: list,
 ) -> None:
-    webhooks_dict = {}  # Словарь для хранения вебхуков
     intents = discord.Intents.default()
     discord_bot = commands.Bot(command_prefix="!", intents=intents)
+    if not tags:
+        tags.append('#other')
     @discord_bot.event
     async def on_ready():
         try:
             logger.info("Бот подключён!")
-            for guild in discord_bot.guilds:
-                logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
-                for channel in guild.text_channels:
-                    try:
-                        webhooks = await channel.webhooks()
-                        for webhook in webhooks:
-                            webhooks_dict[webhook.name] = webhook.url  # Добавляем в словарь
-                            logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}")
-                    except discord.Forbidden:
-                        logger.warning(f"Нет доступа к вебхукам канала {channel.name}")
-                    except Exception as e:
-                        logger.error(f"Ошибка при получении вебхуков для канала {channel.name}: {e}")
+
+            # Получаем словарь вебхуков
+            webhooks_dict = await get_webhooks(discord_bot, discord_server_id)
             logger.info(f"Словарь вебхуков: {webhooks_dict}")
+
             for tag in tags:
                 webhook_url = webhooks_dict.get(tag)
 
@@ -173,7 +167,7 @@ async def send_to_discord(
                                 form_data.add_field(file_name, file_data[1], filename=file_data[0])
                             
                             async with session.post(webhook_url, data=form_data) as response:
-                                if response.status == 204:
+                                if response.status == 200:
                                     logger.info(f"Сообщение успешно отправлено в вебхук {webhook_url}")
                                 else:
                                     logger.error(f"Ошибка отправки в вебхук {webhook_url}: {response.status}")
@@ -198,3 +192,21 @@ async def download_file(url: str) -> tuple[io.BytesIO, str]:
                 return io.BytesIO(data), fixed_filename
             else:
                 raise ValueError(f"Не удалось скачать файл: {url} (status: {response.status})")
+            
+async def get_webhooks(discord_bot, server_id) -> dict:
+    webhooks_dict = {}
+    for guild in discord_bot.guilds:
+        if server_id == guild.id:
+        # if server_id:
+            logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
+            for channel in guild.text_channels:
+                try:
+                    webhooks = await channel.webhooks()
+                    for webhook in webhooks:
+                        webhooks_dict[webhook.name] = webhook.url  # Добавляем в словарь
+                        logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}")
+                except discord.Forbidden:
+                    logger.warning(f"Нет доступа к вебхукам канала {channel.name}")
+                except Exception as e:
+                    logger.error(f"Ошибка при получении вебхуков для канала {channel.name}: {e}")
+    return webhooks_dict

@@ -76,6 +76,8 @@ def start_script():
                 logger.info(f"Starting parsing of the {item_part}")
                 parsed_post = parse_post(item_parts[item_part], repost_exists, item_part, group_name)
                 logger.info(f"Starting sending of the {item_part}")
+
+                discord_server = config.DISCORDSERVER_ID
                 
                 executor.start(
                     dp,
@@ -87,7 +89,8 @@ def start_script():
                         parsed_post["docs"],
                         parsed_post["tags"],
                         config.DISCORDBOT_TOKEN,
+                        discord_server,
                     ),
                 )
 
-        write_id(new_last_id)
+        write_id(new_last_id) # debug place

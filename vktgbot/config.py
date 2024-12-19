@@ -11,6 +11,7 @@ TG_BOT_TOKEN: str = os.getenv("VAR_TG_BOT_TOKEN", "")
 VK_TOKEN: str = os.getenv("VAR_VK_TOKEN", "")
 VK_DOMAIN: str = os.getenv("VAR_VK_DOMAIN", "")
 DISCORDBOT_TOKEN: str = os.getenv("VAR_DISCORDBOT_TOKEN", "")
+DISCORDSERVER_ID: int = int(os.getenv("VAR_DISCORDSERVER_ID", 0))
 
 REQ_VERSION: float = float(os.getenv("VAR_REQ_VERSION", 5.103))
 REQ_COUNT: int = int(os.getenv("VAR_REQ_COUNT", 3))
