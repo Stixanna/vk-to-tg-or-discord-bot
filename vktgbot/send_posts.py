@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 import aiohttp
 import io
+import json
 
 from aiogram import Bot, types
 from aiogram.utils import exceptions
@@ -106,59 +107,80 @@ async def send_to_discord(
     docs: list,
     tags: list,
 ) -> None:
+    webhooks_dict = {}  # Словарь для хранения вебхуков
     intents = discord.Intents.default()
     discord_bot = commands.Bot(command_prefix="!", intents=intents)
     @discord_bot.event
     async def on_ready():
         try:
-            # logger.info("Бот подключён!")
-            # for guild in bot.guilds:
-            #     logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
-            #     for channel in guild.channels:
-            #         logger.info(f"Канал: {channel.name} (ID: {channel.id})")
-
+            logger.info("Бот подключён!")
+            for guild in discord_bot.guilds:
+                logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
+                for channel in guild.text_channels:
+                    try:
+                        webhooks = await channel.webhooks()
+                        for webhook in webhooks:
+                            webhooks_dict[webhook.name] = webhook.url  # Добавляем в словарь
+                            logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}")
+                    except discord.Forbidden:
+                        logger.warning(f"Нет доступа к вебхукам канала {channel.name}")
+                    except Exception as e:
+                        logger.error(f"Ошибка при получении вебхуков для канала {channel.name}: {e}")
+            logger.info(f"Словарь вебхуков: {webhooks_dict}")
             for tag in tags:
-                match tag:
-                    case '#dota':
-                        channel_id = 277493272346230785  # Замените ID канала
-                    case _:
-                        continue    # Если такого тега нет, то пропускаем пост, не отправляем (надо дописать - если никаких тегов нет то отправить хоть кудато)
-                        # channel_id = 1315308603527397476  # Замените ID канала
-                channel = discord_bot.get_channel(channel_id)
-                if channel:
-                    logger.info(f"Найден канал {channel.name}, отправляем сообщение.")
+                webhook_url = webhooks_dict.get(tag)
 
-                    files = []  # Список файлов для прикрепления
+                if not webhook_url and '#other' in webhooks_dict:
+                    webhook_url = webhooks_dict['#other']  # Используем вебхук для "других" сообщений
 
-                    # Добавляем изображения
+                if webhook_url:
+                    logger.info(f"Отправляем сообщение в вебхук {tag} -> {webhook_url}")
+
+                    files = []
+
+                    # Загружаем изображения
                     for photo_url in photos:
                         try:
                             photo_data, filename = await download_file(photo_url)
-                            files.append(discord.File(photo_data, filename=filename))
+                            files.append(('file', (filename, photo_data)))
                         except Exception as e:
                             logger.error(f"Ошибка при добавлении фото {photo_url}: {e}")
-
-                    # Добавляем документы
+                    
+                    # Загружаем документы
                     for doc in docs:
                         try:
-                            # Если doc — это словарь с URL, скачиваем файл
                             if isinstance(doc, dict) and 'url' in doc:
                                 doc_data, filename = await download_file(doc['url'])
-                                filename = doc.get('title', filename)  # Используем заголовок, если указан
-                                files.append(discord.File(doc_data, filename=filename))
+                                filename = doc.get('title', filename)
+                                files.append(('file', (filename, doc_data)))
                             elif isinstance(doc, str):
-                                # Если doc — это строка, предполагаем, что это локальный путь
-                                files.append(discord.File(doc))
+                                with open(doc, 'rb') as file_data:
+                                    files.append(('file', (doc, file_data.read())))
                             else:
-                                raise ValueError(f"Неверный формат данных: {doc}")
+                                raise ValueError(f"Неверный формат документа: {doc}")
                         except Exception as e:
                             logger.error(f"Ошибка при добавлении документа {doc}: {e}")
-
-                    # Отправляем сообщение с текстом и вложениями
-                    await channel.send(content=text, files=files)
-                    logger.info(f"Message sent to channel {channel.name} in Discord")
+                    
+                    # Отправляем сообщение в вебхук
+                    payload = {
+                        "content": text
+                    }
+                    try:
+                        async with aiohttp.ClientSession() as session:
+                            form_data = aiohttp.FormData()
+                            form_data.add_field('payload_json', json.dumps(payload))
+                            for file_name, file_data in files:
+                                form_data.add_field(file_name, file_data[1], filename=file_data[0])
+                            
+                            async with session.post(webhook_url, data=form_data) as response:
+                                if response.status == 204:
+                                    logger.info(f"Сообщение успешно отправлено в вебхук {webhook_url}")
+                                else:
+                                    logger.error(f"Ошибка отправки в вебхук {webhook_url}: {response.status}")
+                    except Exception as e:
+                        logger.error(f"Ошибка при отправке сообщения в вебхук {webhook_url}: {e}")
                 else:
-                    logger.error(f"Канал с ID {channel_id} не найден.")
+                    logger.warning(f"Вебхук для тега {tag} не найден, сообщение пропущено.")
         finally:
             await discord_bot.close()
 
