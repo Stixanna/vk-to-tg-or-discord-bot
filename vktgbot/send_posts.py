@@ -10,6 +10,7 @@ from aiogram.utils import exceptions
 from loguru import logger
 
 from tools import split_text, fix_filename
+from parse_posts import get_doc
 
 
 async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: list, tags: list, discord_token: str, discord_server_id: int, num_tries: int = 0) -> None:
@@ -133,7 +134,8 @@ async def send_to_discord(
                     # Загружаем изображения
                     for photo_url in photos:
                         try:
-                            photo_data, filename = await download_file(photo_url)
+                            # photo_data, filename = await download_file(photo_url)
+                            filename, photo_data = get_doc({'url':photo_url})
                             files.append(('file', (filename, photo_data)))
                         except Exception as e:
                             logger.error(f"Ошибка при добавлении фото {photo_url}: {e}")
