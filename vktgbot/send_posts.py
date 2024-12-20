@@ -135,11 +135,15 @@ async def send_to_discord(
                     for photo_url in photos:
                         try:
                             # photo_data, filename = await download_file(photo_url)
-                            filename, photo_data = get_doc({'url':photo_url})
-                            files.append(('file', (filename, photo_data)))
+                            doc_data = get_doc({'url':photo_url})
+                            correct_filename = doc_data['title']
+
+                            temp_file_path = f'./temp/{correct_filename}'
+                            with open(temp_file_path, 'rb') as file_data:
+                                files.append(('attachment', (correct_filename, file_data.read())))
                         except Exception as e:
                             logger.error(f"Ошибка при добавлении фото {photo_url}: {e}")
-                    logger.info(files)
+                    # logger.info(files)
                     # Берем документы ранее созданные методом get_doc из темп папки
                     for doc in docs:
                         try:

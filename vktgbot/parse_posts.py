@@ -100,7 +100,11 @@ def get_doc(doc: dict) -> Union[dict, None]:
         response = requests.get(doc["url"], allow_redirects=True, timeout=10)
         logger.info(doc["url"])
         # logger.info(f"redirected-correct url: {response.url}")
-        correct_filename = response.url.split('/')[-1].split('?')[-2]
+        url_last_part = response.url.split('/')[-1]
+        if '?' in url_last_part:
+            correct_filename = url_last_part.split('?')[-2]
+        else:
+            correct_filename = url_last_part
         logger.info(correct_filename)
 
         with open(f'./temp/{correct_filename}', "wb") as file:
