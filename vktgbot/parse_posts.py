@@ -97,13 +97,14 @@ def get_doc(doc: dict) -> Union[dict, None]:
         logger.info(f"The document was skipped due to its size exceeding the 50MB limit: {doc['size']=}.")
         return None
     else:
-        response = requests.get(doc["url"])
+        response = requests.get(doc["url"], allow_redirects=True, timeout=10)
+        # logger.info(f"redirected-correct url: {response.url}")
+        correct_filename = response.url.split('/')[-1]
 
-        with open(f'./temp/{doc["title"]}', "wb") as file:
+        with open(f'./temp/{correct_filename}', "wb") as file:
             file.write(response.content)
 
-    return {"title": doc["title"], "url": doc["url"]}
-
+    return {"title": correct_filename, "url": response.url}
 
 def get_tags(text: str) -> list[str]:
     tags = re.findall(r"#\w+", text)
