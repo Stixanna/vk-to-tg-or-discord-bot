@@ -108,4 +108,6 @@ def get_doc(doc: dict) -> Union[dict, None]:
 
 def get_tags(text: str) -> list[str]:
     tags = re.findall(r"#\w+", text)
+    if not tags:
+        tags.append('#other')
     return tags

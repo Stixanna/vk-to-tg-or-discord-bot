@@ -110,8 +110,6 @@ async def send_to_discord(
 ) -> None:
     intents = discord.Intents.default()
     discord_bot = commands.Bot(command_prefix="!", intents=intents)
-    if not tags:
-        tags.append('#other')
     @discord_bot.event
     async def on_ready():
         try:
