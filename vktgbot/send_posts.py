@@ -137,17 +137,19 @@ async def send_to_discord(
                             files.append(('file', (filename, photo_data)))
                         except Exception as e:
                             logger.error(f"Ошибка при добавлении фото {photo_url}: {e}")
-                    
-                    # Загружаем документы
+                    logger.info(files)
+                    # Берем документы ранее созданные методом get_doc из темп папки
                     for doc in docs:
                         try:
-                            if isinstance(doc, dict) and 'url' in doc:
-                                doc_data, filename = await download_file(doc['url'])
-                                filename = doc.get('title', filename)
-                                files.append(('file', (filename, doc_data)))
-                            elif isinstance(doc, str):
-                                with open(doc, 'rb') as file_data:
-                                    files.append(('file', (doc, file_data.read())))
+                            if isinstance(doc, dict):
+                                # Получаем название файла из get_doc
+                                correct_filename = doc.get('title')
+                                if not correct_filename:
+                                    raise ValueError("Название файла отсутствует в объекте doc.")
+
+                                temp_file_path = f'./temp/{correct_filename}'
+                                with open(temp_file_path, 'rb') as file_data:
+                                    files.append(('file', (correct_filename, file_data.read())))
                             else:
                                 raise ValueError(f"Неверный формат документа: {doc}")
                         except Exception as e:
