@@ -93,13 +93,19 @@ def get_photo(attachment: dict) -> Union[str, None]:
 
 
 def get_doc(doc: dict) -> Union[dict, None]:
-    if doc["size"] > 50000000:
+    if "size" in doc and doc["size"] > 50000000:
         logger.info(f"The document was skipped due to its size exceeding the 50MB limit: {doc['size']=}.")
         return None
     else:
         response = requests.get(doc["url"], allow_redirects=True, timeout=10)
+        logger.info(doc["url"])
         # logger.info(f"redirected-correct url: {response.url}")
-        correct_filename = response.url.split('/')[-1]
+        url_last_part = response.url.split('/')[-1]
+        if '?' in url_last_part:
+            correct_filename = url_last_part.split('?')[-2]
+        else:
+            correct_filename = url_last_part
+        logger.info(correct_filename)
 
         with open(f'./temp/{correct_filename}', "wb") as file:
             file.write(response.content)

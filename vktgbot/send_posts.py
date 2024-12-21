@@ -10,6 +10,7 @@ from aiogram.utils import exceptions
 from loguru import logger
 
 from tools import split_text, fix_filename
+from parse_posts import get_doc
 
 
 async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: list, tags: list, discord_token: str, discord_server_id: int, num_tries: int = 0) -> None:
@@ -133,21 +134,28 @@ async def send_to_discord(
                     # Загружаем изображения
                     for photo_url in photos:
                         try:
-                            photo_data, filename = await download_file(photo_url)
-                            files.append(('file', (filename, photo_data)))
+                            # photo_data, filename = await download_file(photo_url)
+                            doc_data = get_doc({'url':photo_url})
+                            correct_filename = doc_data['title']
+
+                            temp_file_path = f'./temp/{correct_filename}'
+                            with open(temp_file_path, 'rb') as file_data:
+                                files.append(('attachment', (correct_filename, file_data.read())))
                         except Exception as e:
                             logger.error(f"Ошибка при добавлении фото {photo_url}: {e}")
-                    
-                    # Загружаем документы
+                    # logger.info(files)
+                    # Берем документы ранее созданные методом get_doc из темп папки
                     for doc in docs:
                         try:
-                            if isinstance(doc, dict) and 'url' in doc:
-                                doc_data, filename = await download_file(doc['url'])
-                                filename = doc.get('title', filename)
-                                files.append(('file', (filename, doc_data)))
-                            elif isinstance(doc, str):
-                                with open(doc, 'rb') as file_data:
-                                    files.append(('file', (doc, file_data.read())))
+                            if isinstance(doc, dict):
+                                # Получаем название файла из get_doc
+                                correct_filename = doc.get('title')
+                                if not correct_filename:
+                                    raise ValueError("Название файла отсутствует в объекте doc.")
+
+                                temp_file_path = f'./temp/{correct_filename}'
+                                with open(temp_file_path, 'rb') as file_data:
+                                    files.append(('file', (correct_filename, file_data.read())))
                             else:
                                 raise ValueError(f"Неверный формат документа: {doc}")
                         except Exception as e:
