@@ -97,3 +97,14 @@ def fix_filename(originalFilename: str) -> str:
     # logger.info(filename)
     """Исправляет расширение файла, если оно некорректное."""
     return filename
+
+def convert_to_FormDataFormat(doc_data):
+    try:
+        correct_filename = doc_data.get('title')
+
+        temp_file_path = f'./temp/{correct_filename}'
+        with open(temp_file_path, 'rb') as file_data:
+            return ('file', (correct_filename, file_data.read()))
+    except Exception as e:
+        file_url = doc_data.get('url')
+        logger.error(f"Ошибка при добавлении фото {file_url}: {e}")

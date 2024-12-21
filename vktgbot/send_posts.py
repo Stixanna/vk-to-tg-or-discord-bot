@@ -9,7 +9,7 @@ from aiogram import Bot, types
 from aiogram.utils import exceptions
 from loguru import logger
 
-from tools import split_text, fix_filename
+from tools import split_text, fix_filename, convert_to_FormDataFormat
 from parse_posts import get_doc
 
 
@@ -118,7 +118,6 @@ async def send_to_discord(
 
             # Получаем словарь вебхуков
             webhooks_dict = await get_webhooks(discord_bot, discord_server_id)
-            logger.info(f"Словарь вебхуков: {webhooks_dict}")
 
             for tag in tags:
                 webhook_url = webhooks_dict.get(tag)
@@ -128,57 +127,22 @@ async def send_to_discord(
 
                 if webhook_url:
                     logger.info(f"Отправляем сообщение в вебхук {tag} -> {webhook_url}")
-
                     files = []
 
                     # Загружаем изображения
                     for photo_url in photos:
-                        try:
-                            # photo_data, filename = await download_file(photo_url)
-                            doc_data = get_doc({'url':photo_url})
-                            correct_filename = doc_data['title']
-
-                            temp_file_path = f'./temp/{correct_filename}'
-                            with open(temp_file_path, 'rb') as file_data:
-                                files.append(('attachment', (correct_filename, file_data.read())))
-                        except Exception as e:
-                            logger.error(f"Ошибка при добавлении фото {photo_url}: {e}")
-                    # logger.info(files)
+                        doc = get_doc({'url':photo_url})
+                        files.append(convert_to_FormDataFormat(doc))
+                    
                     # Берем документы ранее созданные методом get_doc из темп папки
                     for doc in docs:
-                        try:
-                            if isinstance(doc, dict):
-                                # Получаем название файла из get_doc
-                                correct_filename = doc.get('title')
-                                if not correct_filename:
-                                    raise ValueError("Название файла отсутствует в объекте doc.")
-
-                                temp_file_path = f'./temp/{correct_filename}'
-                                with open(temp_file_path, 'rb') as file_data:
-                                    files.append(('file', (correct_filename, file_data.read())))
-                            else:
-                                raise ValueError(f"Неверный формат документа: {doc}")
-                        except Exception as e:
-                            logger.error(f"Ошибка при добавлении документа {doc}: {e}")
+                        files.append(convert_to_FormDataFormat(doc))
                     
                     # Отправляем сообщение в вебхук
                     payload = {
-                        "content": text
+                        # "content": text # Не отправляем текст в дискорд вообще
                     }
-                    try:
-                        async with aiohttp.ClientSession() as session:
-                            form_data = aiohttp.FormData()
-                            form_data.add_field('payload_json', json.dumps(payload))
-                            for file_name, file_data in files:
-                                form_data.add_field(file_name, file_data[1], filename=file_data[0])
-                            
-                            async with session.post(webhook_url, data=form_data) as response:
-                                if response.status == 200:
-                                    logger.info(f"Сообщение успешно отправлено в вебхук {webhook_url}")
-                                else:
-                                    logger.error(f"Ошибка отправки в вебхук {webhook_url}: {response.status}")
-                    except Exception as e:
-                        logger.error(f"Ошибка при отправке сообщения в вебхук {webhook_url}: {e}")
+                    await send_discord_aiohttpRequest(payload, files, webhook_url)
                 else:
                     logger.warning(f"Вебхук для тега {tag} не найден, сообщение пропущено.")
         finally:
@@ -203,16 +167,32 @@ async def get_webhooks(discord_bot, server_id) -> dict:
     webhooks_dict = {}
     for guild in discord_bot.guilds:
         if server_id == guild.id:
-        # if server_id:
             logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
             for channel in guild.text_channels:
                 try:
                     webhooks = await channel.webhooks()
                     for webhook in webhooks:
                         webhooks_dict[webhook.name] = webhook.url  # Добавляем в словарь
-                        logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}")
+                        # logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}") # debug
                 except discord.Forbidden:
                     logger.warning(f"Нет доступа к вебхукам канала {channel.name}")
                 except Exception as e:
                     logger.error(f"Ошибка при получении вебхуков для канала {channel.name}: {e}")
+    logger.info(f"Словарь вебхуков: {webhooks_dict}")
     return webhooks_dict
+
+async def send_discord_aiohttpRequest(payload, files, webhook_url):
+    try:
+        async with aiohttp.ClientSession() as session:
+            form_data = aiohttp.FormData()
+            form_data.add_field('payload_json', json.dumps(payload))
+            for file_name, file_data in files:
+                form_data.add_field(file_name, file_data[1], filename=file_data[0])
+            
+            async with session.post(webhook_url, data=form_data) as response:
+                if response.status == 200:
+                    logger.info(f"Сообщение успешно отправлено в вебхук {webhook_url}")
+                else:
+                    logger.error(f"Ошибка отправки в вебхук {webhook_url}: {response.status}")
+    except Exception as e:
+        logger.error(f"Ошибка при отправке сообщения в вебхук {webhook_url}: {e}")
