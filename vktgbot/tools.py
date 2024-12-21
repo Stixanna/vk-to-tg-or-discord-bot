@@ -2,6 +2,7 @@ import os
 import re
 
 from loguru import logger
+import discord
 
 
 def blacklist_check(blacklist: list, text: str) -> bool:
@@ -105,6 +106,17 @@ def convert_to_FormDataFormat(doc_data):
         temp_file_path = f'./temp/{correct_filename}'
         with open(temp_file_path, 'rb') as file_data:
             return ('file', (correct_filename, file_data.read()))
+    except Exception as e:
+        file_url = doc_data.get('url')
+        logger.error(f"Ошибка при добавлении фото {file_url}: {e}")
+
+def convert_to_DiscordBotFormat(doc_data):
+    try:
+        correct_filename = doc_data.get('title')
+
+        temp_file_path = f'./temp/{correct_filename}'
+        with open(temp_file_path, 'rb') as file_data:
+            return discord.File(file_data, filename=correct_filename)
     except Exception as e:
         file_url = doc_data.get('url')
         logger.error(f"Ошибка при добавлении фото {file_url}: {e}")
