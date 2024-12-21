@@ -120,13 +120,13 @@ async def send_to_discord(
             webhooks_dict = await get_webhooks(discord_bot, discord_server_id)
 
             for tag in tags:
-                webhook_url = webhooks_dict.get(tag)
+                webhook = webhooks_dict.get(tag)
 
-                if not webhook_url and '#other' in webhooks_dict:
-                    webhook_url = webhooks_dict['#other']  # Используем вебхук для "других" сообщений
+                if not webhook and '#other' in webhooks_dict:
+                    webhook = webhooks_dict['#other']  # Используем вебхук для "других" сообщений
 
-                if webhook_url:
-                    logger.info(f"Отправляем сообщение в вебхук {tag} -> {webhook_url}")
+                if webhook:
+                    logger.info(f"Отправляем сообщение в вебхук {tag} -> {webhook['url']}")
                     files = []
 
                     # Загружаем изображения
@@ -142,7 +142,7 @@ async def send_to_discord(
                     payload = {
                         # "content": text # Не отправляем текст в дискорд вообще
                     }
-                    await send_discord_aiohttpRequest(payload, files, webhook_url)
+                    await send_discord_aiohttpRequest(payload, files, webhook['url'])
                 else:
                     logger.warning(f"Вебхук для тега {tag} не найден, сообщение пропущено.")
         finally:
@@ -150,18 +150,18 @@ async def send_to_discord(
 
     await discord_bot.start(discord_token)
 
-async def download_file(url: str) -> tuple[io.BytesIO, str]:
-    """Скачивает файл по URL и возвращает объект BytesIO и исправленное имя файла."""
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                data = await response.read()
-                # logger.info(f"{url} url")
-                original_filename = url.split("/")[-1]
-                fixed_filename = fix_filename(original_filename)
-                return io.BytesIO(data), fixed_filename
-            else:
-                raise ValueError(f"Не удалось скачать файл: {url} (status: {response.status})")
+# async def download_file(url: str) -> tuple[io.BytesIO, str]:
+#     """Скачивает файл по URL и возвращает объект BytesIO и исправленное имя файла."""
+#     async with aiohttp.ClientSession() as session:
+#         async with session.get(url) as response:
+#             if response.status == 200:
+#                 data = await response.read()
+#                 # logger.info(f"{url} url")
+#                 original_filename = url.split("/")[-1]
+#                 fixed_filename = fix_filename(original_filename)
+#                 return io.BytesIO(data), fixed_filename
+#             else:
+#                 raise ValueError(f"Не удалось скачать файл: {url} (status: {response.status})")
             
 async def get_webhooks(discord_bot, server_id) -> dict:
     webhooks_dict = {}
@@ -172,7 +172,7 @@ async def get_webhooks(discord_bot, server_id) -> dict:
                 try:
                     webhooks = await channel.webhooks()
                     for webhook in webhooks:
-                        webhooks_dict[webhook.name] = webhook.url  # Добавляем в словарь
+                        webhooks_dict[webhook.name] = {'channel_id' : channel.id, 'url' : webhook.url}  # Добавляем в словарь
                         # logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}") # debug
                 except discord.Forbidden:
                     logger.warning(f"Нет доступа к вебхукам канала {channel.name}")
