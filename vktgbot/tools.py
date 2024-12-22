@@ -93,11 +93,11 @@ def reformat_vk_links(text: str) -> str:
 
     return text
 
-def fix_filename(originalFilename: str) -> str:
-    filename = originalFilename.split('?')[0]
-    # logger.info(filename)
-    """Исправляет расширение файла, если оно некорректное."""
-    return filename
+# def fix_filename(originalFilename: str) -> str:
+#     filename = originalFilename.split('?')[0]
+#     # logger.info(filename)
+#     """Исправляет расширение файла, если оно некорректное."""
+#     return filename
 
 def convert_to_FormDataFormat(doc_data):
     try:
@@ -120,3 +120,31 @@ def convert_to_DiscordBotFormat(doc_data):
     except Exception as e:
         file_url = doc_data.get('url')
         logger.error(f"Ошибка при добавлении фото {file_url}: {e}")
+
+def clearTextExcludeLinks(text):
+    # Регулярное выражение для поиска Markdown-ссылок [Текст ссылки](URL)
+    markdown_pattern = r'\[([^\]]+)\]\((https?://[^\s]+)\)'
+
+    # Регулярное выражение для поиска обычных URL
+    url_pattern = r'https?://[^\s]+'
+
+    # Сохраняем Markdown-ссылки
+    markdown_links = re.findall(markdown_pattern, text)
+    markdown_results = [f"[{text_part}]({url})" for text_part, url in markdown_links]
+
+    # Удаляем Markdown-ссылки из текста
+    text_without_markdown = re.sub(markdown_pattern, '', text)
+
+    # Сохраняем оставшиеся обычные ссылки
+    other_links = re.findall(url_pattern, text_without_markdown)
+
+    # Объединяем Markdown и обычные ссылки
+    all_links = markdown_results + other_links
+
+    # Возвращаем только ссылки
+    return '\n'.join(all_links)
+
+def createTGlink(tg_channel, message, text):
+    link = f"[Ссылка на телеграм пост](https://t.me/{tg_channel.lstrip('@')}/{message.message_id})"
+    text = f"{text}\n{link}"
+    return text
