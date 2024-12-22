@@ -18,12 +18,9 @@ from tools import blacklist_check, prepare_temp_folder, whitelist_check
 # intents = discord.Intents.default()
 # discord_bot = commands.Bot(command_prefix="!", intents=intents)
 
-def start_script():
+def start_script(firstStartBool):
     bot = Bot(token=config.TG_BOT_TOKEN)
     dp = Dispatcher(bot)
-
-    last_known_id = read_id()
-    logger.info(f"Last known ID: {last_known_id}")
 
     items: Union[dict, None] = get_data_from_vk(
         config.VK_TOKEN,
@@ -40,6 +37,13 @@ def start_script():
     logger.info(f"Got a few posts with IDs: {items[-1]['id']} - {items[0]['id']}.")
 
     new_last_id: int = items[0]["id"]
+    
+    if firstStartBool: # starts on last post
+        last_known_id = new_last_id - 1
+        logger.info(f"Last ID on wall: {last_known_id}")
+    else:
+        last_known_id = read_id()
+        logger.info(f"Last known ID: {last_known_id}")
 
     if new_last_id > last_known_id:
         for item in items[::-1]:
