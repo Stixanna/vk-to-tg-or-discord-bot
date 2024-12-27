@@ -156,20 +156,10 @@ async def send_to_discord(
                     for doc in docs:
                         files.append(convert_to_FormDataFormat(doc))
                     
-                    
-                    if len(files) > 1 :
-                        logger.info(f"Отправляем сообщение в канал {tag} -> {webhook['channel_id']}")
-
-                        channel = discord_bot.get_channel(webhook['channel_id'])
-                        await channel.send(content=text, files=files)
-                        logger.info(f"Message sent to channel {channel.name} in Discord")
+                    if len(photos) > 1 :
+                        await send_discord_channel(text, files, webhook['channel_id'], discord_bot)
                     else:
-                        logger.info(f"Отправляем сообщение в вебхук {tag} -> {webhook['url']}")
-
-                        payload = {
-                            "content": text 
-                        }
-                        await send_discord_aiohttpRequest(payload, files, webhook['url'])
+                        await send_discord_aiohttpRequest(text, files, webhook['url'])
                 else:
                     logger.warning(f"Вебхук для тега {tag} не найден, сообщение пропущено.")
         finally:
@@ -190,26 +180,44 @@ async def send_to_discord(
 #             else:
 #                 raise ValueError(f"Не удалось скачать файл: {url} (status: {response.status})")
             
-async def get_webhooks(discord_bot, server_id) -> dict:
+async def get_webhooks(discord_bot, server_id, num_tries: int = 0) -> dict:
+    num_tries += 1
     webhooks_dict = {}
-    for guild in discord_bot.guilds:
-        if server_id == guild.id:
-            logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
-            for channel in guild.text_channels:
-                try:
-                    webhooks = await channel.webhooks()
-                    for webhook in webhooks:
-                        webhooks_dict[webhook.name] = {'channel_id' : channel.id, 'url' : webhook.url}  # Добавляем в словарь
-                        # logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}") # debug
-                except discord.Forbidden:
-                    logger.warning(f"Нет доступа к вебхукам канала {channel.name}")
-                except Exception as e:
-                    logger.error(f"Ошибка при получении вебхуков для канала {channel.name}: {e}")
-    logger.info(f"Словарь вебхуков: {webhooks_dict}")
-    return webhooks_dict
 
-async def send_discord_aiohttpRequest(payload, files, webhook_url):
+    if num_tries > 3:
+        logger.error("Post was not sent to Discord. Too many tries.")
+        return
     try:
+        for guild in discord_bot.guilds:
+            if server_id == guild.id:
+                logger.info(f"Сервер: {guild.name} (ID: {guild.id})")
+                for channel in guild.text_channels:
+                    try:
+                        webhooks = await channel.webhooks()
+                        for webhook in webhooks:
+                            webhooks_dict[webhook.name] = {'channel_id' : channel.id, 'url' : webhook.url}  # Добавляем в словарь
+                            # logger.info(f"Вебхук добавлен: {webhook.name} -> {webhook.url}") # debug
+                    except discord.Forbidden:
+                        logger.warning(f"Нет доступа к вебхукам канала {channel.name}")
+                    except Exception as e:
+                        logger.error(f"Ошибка при получении вебхуков для канала {channel.name}: {e}")
+        logger.info(f"Словарь вебхуков: {webhooks_dict}")
+        return webhooks_dict
+    except Exception as e:
+        logger.warning(f"{e}. Sleep {10} seconds. Try: {num_tries}")
+        await asyncio.sleep(10)
+        await get_webhooks(discord_bot, server_id)
+
+# Из за ограничения discord, через хттп сервером принимается только первый файл, остальные файлы в этом запросе будут проигнорированы
+async def send_discord_aiohttpRequest(text, files, webhook_url, num_tries: int = 0):
+    payload = { "content": text }
+    num_tries += 1
+
+    if num_tries > 3:
+        logger.error("Post was not sent to Discord. Too many tries.")
+        return
+    try:
+        logger.info(f"Отправляем сообщение в вебхук: {webhook_url}")
         async with aiohttp.ClientSession() as session:
             form_data = aiohttp.FormData()
             form_data.add_field('payload_json', json.dumps(payload))
@@ -222,4 +230,23 @@ async def send_discord_aiohttpRequest(payload, files, webhook_url):
                 else:
                     logger.error(f"Ошибка отправки в вебхук {webhook_url}: {response.status}")
     except Exception as e:
-        logger.error(f"Ошибка при отправке сообщения в вебхук {webhook_url}: {e}")
+        logger.warning(f"{e}. Sleep {30} seconds. Try: {num_tries}")
+        await asyncio.sleep(30)
+        await send_discord_aiohttpRequest(payload, files, webhook_url, num_tries)
+
+# Отправка сообщения из под бота в канале
+async def send_discord_channel(text, files, channel_id, discord_bot, num_tries: int = 0):
+    num_tries += 1
+
+    if num_tries > 3:
+        logger.error("Post was not sent to Discord. Too many tries.")
+        return
+    try:
+        logger.info(f"Отправляем сообщение в канал: {channel_id}")
+        channel = discord_bot.get_channel(channel_id)
+        await channel.send(content=text, files=files)
+        logger.info(f"Message sent to channel {channel.name} in Discord")
+    except Exception as e:
+        logger.warning(f"{e}. Sleep {30} seconds. Try: {num_tries}")
+        await asyncio.sleep(30)
+        await send_discord_channel(discord_bot, text, files, channel_id, num_tries)

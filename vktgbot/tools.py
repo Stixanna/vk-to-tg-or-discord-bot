@@ -145,6 +145,10 @@ def clearTextExcludeLinks(text):
     return '\n'.join(all_links)
 
 def createTGlink(tg_channel, message, text):
+    if isinstance(message, list):
+        if not message:
+            raise ValueError("Передан пустой список сообщений.")
+        message = message[0]  # Берем первый элемент списка
     link = f"[Ссылка на телеграм пост](https://t.me/{tg_channel.lstrip('@')}/{message.message_id})"
     text = f"{text}\n{link}"
     return text
