@@ -1,6 +1,6 @@
 """
-Telegram Bot for automated reposting from VKontakte community pages
-to Telegram channels.
+Bot for automated reposting from VKontakte community pages
+to Telegram and Discord channels.
 
 v3.1
 by @alcortazzo
@@ -14,6 +14,7 @@ from config import SINGLE_START, TIME_TO_SLEEP
 from start_script import start_script
 from tools import prepare_temp_folder
 
+# Лог для всех сообщений DEBUG и выше
 logger.add(
     "./logs/debug.log",
     format="{time} {level} {message}",
@@ -21,6 +22,15 @@ logger.add(
     rotation="1 week",
     compression="zip",
 )
+# Лог только для WARNING и ERROR
+logger.add(
+    "./logs/warning_error.log",
+    format="{time} {level} {message}",
+    level="WARNING",  # Записываются только WARNING и выше
+    rotation="10 MB",
+    compression="zip",
+)
+
 
 logger.info("Script is started.")
 
