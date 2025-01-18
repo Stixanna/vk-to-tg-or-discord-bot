@@ -93,11 +93,7 @@ def reformat_vk_links(text: str) -> str:
 
     return text
 
-# def fix_filename(originalFilename: str) -> str:
-#     filename = originalFilename.split('?')[0]
-#     # logger.info(filename)
-#     """Исправляет расширение файла, если оно некорректное."""
-#     return filename
+# *********************
 
 def convert_to_FormDataFormat(doc_data):
     try:
@@ -110,6 +106,7 @@ def convert_to_FormDataFormat(doc_data):
         file_url = doc_data.get('url')
         logger.error(f"Ошибка при добавлении фото {file_url}: {e}")
 
+
 def convert_to_DiscordBotFormat(doc_data):
     try:
         correct_filename = doc_data.get('title')
@@ -120,6 +117,27 @@ def convert_to_DiscordBotFormat(doc_data):
     except Exception as e:
         file_url = doc_data.get('url')
         logger.error(f"Ошибка при добавлении фото {file_url}: {e}")
+
+
+def convertToSendingFormat(photos, docs):
+    from parse_posts import (get_doc)
+    
+    files = []
+
+    # Загружаем изображения
+    for photo_url in photos:
+        doc = get_doc({'url':photo_url})
+        if len(photos) == 1:
+            files.append(convert_to_FormDataFormat(doc))
+        elif len(photos) > 1:
+            files.append(convert_to_DiscordBotFormat(doc))
+    
+    # Берем документы ранее созданные методом get_doc из темп папки
+    for doc in docs:
+        files.append(convert_to_FormDataFormat(doc))
+    
+    return files
+
 
 def clearTextExcludeLinks(text):
     # Регулярное выражение для поиска Markdown-ссылок [Текст ссылки](URL)
@@ -144,7 +162,12 @@ def clearTextExcludeLinks(text):
     # Возвращаем только ссылки
     return '\n'.join(all_links)
 
+
 def createTGlink(tg_channel, message, text):
+    if isinstance(message, list):
+        if not message:
+            raise ValueError("Передан пустой список сообщений.")
+        message = message[0]  # Берем первый элемент списка
     link = f"[Ссылка на телеграм пост](https://t.me/{tg_channel.lstrip('@')}/{message.message_id})"
     text = f"{text}\n{link}"
     return text
