@@ -2,8 +2,8 @@
 Bot for automated reposting from VKontakte community pages
 to Telegram and Discord channels.
 
-v3.1
-by @alcortazzo
+v1.0
+by @stixanna
 """
 
 import time
@@ -18,17 +18,16 @@ from tools import prepare_temp_folder
 logger.add(
     "./logs/debug.log",
     format="{time} {level} {message}",
-    level="DEBUG",
-    rotation="1 week",
-    compression="zip",
+    level="DEBUG",  # Записываются все логи
+    rotation="1 month", # Триггер через месяц
 )
 # Лог только для WARNING и ERROR
 logger.add(
     "./logs/warning_error.log",
     format="{time} {level} {message}",
-    level="WARNING",  # Записываются только WARNING и выше
-    rotation="10 MB",
-    compression="zip",
+    level="ERROR",  # Записываются только ERROR и выше
+    rotation="1 MB",    # Триггер через месяц
+    compression="zip",  # Сжать вместо удаления
 )
 
 
