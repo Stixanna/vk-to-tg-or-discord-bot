@@ -26,7 +26,7 @@ logger.add(
     "./logs/warning_error.log",
     format="{time} {level} {message}",
     level="ERROR",  # Записываются только ERROR и выше
-    rotation="1 MB",    # Триггер через месяц
+    rotation="1 MB",    # Триггер после 1 МБ
     compression="zip",  # Сжать вместо удаления
 )
 

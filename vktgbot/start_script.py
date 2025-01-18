@@ -39,7 +39,9 @@ def start_script(firstStartBool):
     new_last_id: int = items[0]["id"]
     
     if firstStartBool: # starts on last post
-        last_known_id = new_last_id - 1
+        last_known_id = new_last_id 
+        # last_known_id = new_last_id - 1 # debug
+        write_id(last_known_id) # debug place
         logger.info(f"Last ID on wall: {last_known_id}")
     else:
         last_known_id = read_id()
