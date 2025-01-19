@@ -31,10 +31,12 @@ async def send_post(bot: Bot, tg_channel: str, text: str, photos: list, docs: li
         elif docs:
             message = await send_docs_post(bot, tg_channel, text, docs)
 
-        # Формируем ссылку на сообщение
-        text = createTGlink(tg_channel, message, text)
-        # Discord отправка (пример — отправляем текст и прикрепления)
-        await send_to_discord(discord_token, discord_server_id, text, photos, docs, tags)
+        # проверка объявленности переменной, если нет то не слать в дискорд
+        if (discord_server_id != 0): 
+            # Формируем ссылку на сообщение
+            text = createTGlink(tg_channel, message, text)
+            # Discord отправка (пример — отправляем текст и прикрепления)
+            await send_to_discord(discord_token, discord_server_id, text, photos, docs, tags)
 
     except exceptions.RetryAfter as ex:
         logger.warning(f"Flood limit is exceeded. Sleep {ex.timeout} seconds. Try: {num_tries}")
